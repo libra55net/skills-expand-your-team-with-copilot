@@ -472,6 +472,24 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  function getShareDetails(name, details) {
+    const shareUrl = `${window.location.origin}${
+      window.location.pathname
+    }?activity=${encodeURIComponent(name)}`;
+    const shareText = `Check out ${name} at Mergington High School! ${details.description}`;
+
+    return {
+      shareUrl,
+      shareText,
+      xShareUrl: `https://twitter.com/intent/tweet?text=${encodeURIComponent(
+        shareText
+      )}&url=${encodeURIComponent(shareUrl)}`,
+      whatsappShareUrl: `https://api.whatsapp.com/send?text=${encodeURIComponent(
+        `${shareText} ${shareUrl}`
+      )}`,
+    };
+  }
+
   // Function to render a single activity card
   function renderActivityCard(name, details) {
     const activityCard = document.createElement("div");
@@ -498,6 +516,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Format the schedule using the new helper function
     const formattedSchedule = formatSchedule(details);
+    const shareDetails = getShareDetails(name, details);
 
     // Create activity tag
     const tagHtml = `
@@ -569,6 +588,41 @@ document.addEventListener("DOMContentLoaded", () => {
         `
         }
       </div>
+      <div class="social-share">
+        <button
+          class="share-button native-share-button"
+          data-share-text="${shareDetails.shareText}"
+          data-share-url="${shareDetails.shareUrl}"
+          aria-label="Share ${name}"
+        >
+          Share
+        </button>
+        <button
+          class="share-button copy-share-button"
+          data-share-url="${shareDetails.shareUrl}"
+          aria-label="Copy share link for ${name}"
+        >
+          Copy Link
+        </button>
+        <a
+          class="share-button"
+          href="${shareDetails.whatsappShareUrl}"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Share ${name} on WhatsApp"
+        >
+          WhatsApp
+        </a>
+        <a
+          class="share-button"
+          href="${shareDetails.xShareUrl}"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Share ${name} on X"
+        >
+          X
+        </a>
+      </div>
     `;
 
     // Add click handlers for delete buttons
@@ -586,6 +640,40 @@ document.addEventListener("DOMContentLoaded", () => {
         });
       }
     }
+
+    const nativeShareButton = activityCard.querySelector(".native-share-button");
+    if (!navigator.share) {
+      nativeShareButton.classList.add("hidden");
+    } else {
+      nativeShareButton.addEventListener("click", async () => {
+        const shareText = nativeShareButton.dataset.shareText;
+        const shareUrl = nativeShareButton.dataset.shareUrl;
+
+        try {
+          await navigator.share({
+            title: name,
+            text: shareText,
+            url: shareUrl,
+          });
+        } catch (error) {
+          if (error.name !== "AbortError") {
+            showMessage("Unable to share this activity right now.", "error");
+          }
+        }
+      });
+    }
+
+    const copyShareButton = activityCard.querySelector(".copy-share-button");
+    copyShareButton.addEventListener("click", async () => {
+      const shareUrl = copyShareButton.dataset.shareUrl;
+
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        showMessage("Share link copied to clipboard.", "success");
+      } catch (error) {
+        showMessage("Unable to copy link. Please copy it manually.", "error");
+      }
+    });
 
     activitiesList.appendChild(activityCard);
   }
