@@ -553,6 +553,17 @@ document.addEventListener("DOMContentLoaded", () => {
         </ul>
       </div>
       <div class="activity-card-actions">
+        <div class="share-container">
+          <button class="share-button share-btn" data-activity="${name}" aria-label="Share this activity">
+            📤 Share
+          </button>
+          <div class="share-dropdown">
+            <button class="share-option share-twitter"><span class="share-icon">🐦</span>Twitter / X</button>
+            <button class="share-option share-whatsapp"><span class="share-icon">💬</span>WhatsApp</button>
+            <button class="share-option share-copy"><span class="share-icon">🔗</span>Copy Link</button>
+            <div class="share-copied-msg">Link copied!</div>
+          </div>
+        </div>
         ${
           currentUser
             ? `
@@ -575,6 +586,48 @@ document.addEventListener("DOMContentLoaded", () => {
     const deleteButtons = activityCard.querySelectorAll(".delete-participant");
     deleteButtons.forEach((button) => {
       button.addEventListener("click", handleUnregister);
+    });
+
+    // Share button logic
+    const shareBtn = activityCard.querySelector(".share-btn");
+    const shareDropdown = activityCard.querySelector(".share-dropdown");
+
+    shareBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const shareData = shareActivity(name, details);
+      if (!shareData) return; // Web Share API handled it
+
+      // Toggle dropdown
+      const isOpen = shareDropdown.classList.contains("open");
+      // Close all other open dropdowns
+      document.querySelectorAll(".share-dropdown.open").forEach((d) => d.classList.remove("open"));
+      if (!isOpen) shareDropdown.classList.add("open");
+    });
+
+    activityCard.querySelector(".share-twitter").addEventListener("click", () => {
+      const shareData = shareActivity(name, details);
+      if (shareData) window.open(shareData.twitter, "_blank", "noopener,noreferrer");
+      shareDropdown.classList.remove("open");
+    });
+
+    activityCard.querySelector(".share-whatsapp").addEventListener("click", () => {
+      const shareData = shareActivity(name, details);
+      if (shareData) window.open(shareData.whatsapp, "_blank", "noopener,noreferrer");
+      shareDropdown.classList.remove("open");
+    });
+
+    activityCard.querySelector(".share-copy").addEventListener("click", () => {
+      const shareData = shareActivity(name, details);
+      if (shareData) {
+        navigator.clipboard.writeText(shareData.url).then(() => {
+          const copiedMsg = activityCard.querySelector(".share-copied-msg");
+          copiedMsg.classList.add("visible");
+          setTimeout(() => {
+            copiedMsg.classList.remove("visible");
+            shareDropdown.classList.remove("open");
+          }, 1500);
+        });
+      }
     });
 
     // Add click handler for register button (only when authenticated)
@@ -666,6 +719,11 @@ document.addEventListener("DOMContentLoaded", () => {
     "click",
     closeRegistrationModalHandler
   );
+
+  // Close any open share dropdowns when clicking outside
+  document.addEventListener("click", () => {
+    document.querySelectorAll(".share-dropdown.open").forEach((d) => d.classList.remove("open"));
+  });
 
   // Close modal when clicking outside of it
   window.addEventListener("click", (event) => {
@@ -797,6 +855,27 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }
     );
+  }
+
+  // Share an activity via Web Share API or a dropdown fallback
+  function shareActivity(name, details) {
+    const shareText = `Check out "${name}" at Mergington High School!\n${details.description}\nSchedule: ${formatSchedule(details)}`;
+    const shareUrl = window.location.href.split("#")[0];
+
+    if (navigator.share) {
+      navigator.share({ title: name, text: shareText, url: shareUrl }).catch(
+        () => {} // User cancelled — ignore
+      );
+      return null; // Web Share API handled it
+    }
+
+    // Return share links for the dropdown fallback
+    return {
+      twitter: `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`,
+      whatsapp: `https://wa.me/?text=${encodeURIComponent(shareText + "\n" + shareUrl)}`,
+      text: shareText,
+      url: shareUrl,
+    };
   }
 
   // Show message function
